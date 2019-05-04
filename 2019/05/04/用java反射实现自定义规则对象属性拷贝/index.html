@@ -78,7 +78,7 @@
 <link href="/css/main.css?v=5.1.2" rel="stylesheet" type="text/css">
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="java反射,">
 
 
 
@@ -94,13 +94,18 @@
 
 
 
-<meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="the-valley.github.io/index.html">
+<meta name="description" content="在工作中用到了protobuf，需要由protobuf类转成pojo，由于字段比较多，两个对象之间属性名不完全相同但是又存在一些映射规则，自己写了一个根据反射完成两个对象之间对应属性的赋值。直接上父抽象类代码： 1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515">
+<meta name="keywords" content="java反射">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用java反射实现自定义规则对象属性拷贝">
+<meta property="og:url" content="the-valley.github.io/2019/05/04/用java反射实现自定义规则对象属性拷贝/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="在工作中用到了protobuf，需要由protobuf类转成pojo，由于字段比较多，两个对象之间属性名不完全相同但是又存在一些映射规则，自己写了一个根据反射完成两个对象之间对应属性的赋值。直接上父抽象类代码： 1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515">
 <meta property="og:locale" content="default">
+<meta property="og:updated_time" content="2019-05-04T13:48:52.303Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hexo">
+<meta name="twitter:title" content="用java反射实现自定义规则对象属性拷贝">
+<meta name="twitter:description" content="在工作中用到了protobuf，需要由protobuf类转成pojo，由于字段比较多，两个对象之间属性名不完全相同但是又存在一些映射规则，自己写了一个根据反射完成两个对象之间对应属性的赋值。直接上父抽象类代码： 1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515">
 
 
 
@@ -129,13 +134,13 @@
 
 
 
-  <link rel="canonical" href="the-valley.github.io/">
+  <link rel="canonical" href="the-valley.github.io/2019/05/04/用java反射实现自定义规则对象属性拷贝/">
 
 
 
 
 
-  <title>Hexo</title>
+  <title>用java反射实现自定义规则对象属性拷贝 | Hexo</title>
   
 
 
@@ -160,9 +165,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-   page-home 
- ">
+  <div class="container sidebar-position-left page-post-detail ">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -245,9 +248,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -277,9 +280,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/05/04/用java反射实现自定义规则对象属性拷贝/" itemprop="url">用java反射实现自定义规则对象属性拷贝</a></h1>
+          <h1 class="post-title" itemprop="name headline">用java反射实现自定义规则对象属性拷贝</h1>
         
 
         <div class="post-meta">
@@ -329,9 +330,7 @@
       
 
       
-        
-          
-            <p>在工作中用到了protobuf，需要由protobuf类转成pojo，由于字段比较多，两个对象之间属性名不完全相同但是又存在一些映射规则，自己写了一个根据反射完成两个对象之间对应属性的赋值。直接上父抽象类代码：</p>
+        <p>在工作中用到了protobuf，需要由protobuf类转成pojo，由于字段比较多，两个对象之间属性名不完全相同但是又存在一些映射规则，自己写了一个根据反射完成两个对象之间对应属性的赋值。直接上父抽象类代码：</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.aden.bern.leak.detection.exception.ConvertException;</span><br><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"><span class="keyword">import</span> org.springframework.beans.BeanUtils;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.beans.PropertyDescriptor;</span><br><span class="line"><span class="keyword">import</span> java.lang.reflect.*;</span><br><span class="line"><span class="keyword">import</span> java.util.Objects;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@author</span> wangyong</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@description</span> pb对象与普通对象的转换</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@date</span> 2019-04-10</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf</span>4j</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractConverter</span>&lt;<span class="title">T</span>, <span class="title">S</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Class&lt;T&gt; targetClass;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 父类的构造函数，实例化一个目标类对象</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">AbstractConverter</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        Type genericSuperClass = <span class="keyword">this</span>.getClass().getGenericSuperclass();</span><br><span class="line">        <span class="comment">//noinspection unchecked</span></span><br><span class="line">        targetClass = ((Class&lt;T&gt;) ((ParameterizedType) genericSuperClass).getActualTypeArguments()[<span class="number">0</span>]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 执行转换</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceObject 源对象</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> T <span class="title">convert</span><span class="params">(S sourceObject)</span> </span>&#123;</span><br><span class="line">        T targetObject = newTargetClassInstance();</span><br><span class="line">        <span class="keyword">if</span> (Objects.isNull(targetObject)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        PropertyDescriptor[] propertyDescriptors = BeanUtils.getPropertyDescriptors(targetObject.getClass());</span><br><span class="line">        <span class="keyword">for</span> (PropertyDescriptor propertyDescriptor : propertyDescriptors) &#123;</span><br><span class="line">            copyValue(sourceObject, targetObject, propertyDescriptor);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> targetObject;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 属性赋值</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceObject             源对象</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> targetObject             目标对象</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> targetPropertyDescriptor 目标对象属性描述</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">copyValue</span><span class="params">(S sourceObject, T targetObject, PropertyDescriptor targetPropertyDescriptor)</span> </span>&#123;</span><br><span class="line">        String targetPropertyName = targetPropertyDescriptor.getName();</span><br><span class="line">        <span class="comment">//获取源类的与目标类当前属性对应的名称</span></span><br><span class="line">        String sourcePropertyName = mappingProperty(targetPropertyName);</span><br><span class="line">        PropertyDescriptor sourcePropertyDescriptor = BeanUtils</span><br><span class="line">                .getPropertyDescriptor(sourceObject.getClass(), sourcePropertyName);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (Objects.isNull(sourcePropertyDescriptor)) &#123;</span><br><span class="line">            log.debug(<span class="string">"source class &#123;&#125; has no property &#123;&#125;."</span>, sourceObject.getClass(), sourcePropertyName);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        beforSetProperty(sourcePropertyDescriptor, sourceObject);</span><br><span class="line">        setProperty(sourceObject, targetObject, targetPropertyDescriptor, sourcePropertyDescriptor);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 对目标对象属性赋值</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceObject             源对象</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> targetObject             目标对象</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> targetPropertyDescriptor 目标对象属性描述</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourcePropertyDescriptor 源对象属性描述</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">setProperty</span><span class="params">(S sourceObject, T targetObject, PropertyDescriptor targetPropertyDescriptor, PropertyDescriptor sourcePropertyDescriptor)</span> </span>&#123;</span><br><span class="line">        <span class="comment">//读取源对象属性</span></span><br><span class="line">        <span class="comment">//得到源对象中当前属性的get方法</span></span><br><span class="line">        Method sourceReadMethod = sourcePropertyDescriptor.getReadMethod();</span><br><span class="line">        <span class="comment">//得到目标对象中的对应属性的set方法</span></span><br><span class="line">        Method targetWriteMethod = targetPropertyDescriptor.getWriteMethod();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (Objects.isNull(targetWriteMethod)) &#123;</span><br><span class="line">            log.debug(<span class="string">"can not get write method of &#123;&#125; in class &#123;&#125;"</span>, targetPropertyDescriptor.getName(), targetObject.getClass());</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (Objects.isNull(sourceReadMethod.invoke(sourceObject))) &#123;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            setAccess(targetWriteMethod).invoke(targetObject, sourceReadMethod.invoke(sourceObject));</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IllegalAccessException | InvocationTargetException e) &#123;</span><br><span class="line">            log.error(<span class="string">"target class"</span> + targetObject.getClass().getName() +</span><br><span class="line">                    <span class="string">" source class "</span> + sourceObject.getClass().getName() +</span><br><span class="line">                    <span class="string">" target property "</span> + targetPropertyDescriptor.getName() +</span><br><span class="line">                    <span class="string">" source property "</span> + sourcePropertyDescriptor.getName() +</span><br><span class="line">                    <span class="string">" 赋值失败！"</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 如果方法的访问权限不为public，则修改为可以访问</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> method</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Method <span class="title">setAccess</span><span class="params">(Method method)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (!Modifier.isPublic(method.getModifiers())) &#123;</span><br><span class="line">            method.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> method;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 当构造函数的访问权限为私有时设置为可以访问</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> constructor</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Constructor <span class="title">setAccess</span><span class="params">(Constructor constructor)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (!Modifier.isPublic(constructor.getModifiers())) &#123;</span><br><span class="line">            constructor.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> constructor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 对目标对象赋值前做的预处理</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourcePropertyDescriptor</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceObject</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">beforSetProperty</span><span class="params">(PropertyDescriptor sourcePropertyDescriptor, S sourceObject)</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 具体字段名字的对应规则，默认不转换，子类可重写来实现新的对应规则</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> targetPropertyName 目标类的属性名称</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">mappingProperty</span><span class="params">(String targetPropertyName)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> targetPropertyName;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 实例化一个目标类属性</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> T <span class="title">newTargetClassInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> targetClass.newInstance();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InstantiationException | IllegalAccessException e) &#123;</span><br><span class="line">            log.error(<span class="string">"new instance of "</span> + targetClass.getName() + <span class="string">" exception; "</span>, e);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>泛型T为目标类型（比如pojo）S为源类型（比如PB类）。</p>
 <h2 id="实现自定义的字段映射规则"><a href="#实现自定义的字段映射规则" class="headerlink" title="实现自定义的字段映射规则"></a>实现自定义的字段映射规则</h2><p>子类通过重写此抽象类的mappingProperty(String targetPropertyName)方法来实现相应的属性映射规则。比如，当目标类的属性命名规则是源类的属性首字母小写时：</p>
@@ -340,8 +339,6 @@
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 当目标类为pb类时，重写父类的创建目标类实例的方法</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> TargetClass.<span class="function">Builder <span class="title">newTargetClassInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> TargetClass.newBuilder();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 <p>考虑到java反射的性能问题，在对程序性能要求比较高的场景中并不适合。</p>
 
-          
-        
       
     </div>
     
@@ -356,142 +353,36 @@
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="the-valley.github.io/2019/03/18/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="WangY">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/03/18/hello-world/" itemprop="url">Hello World</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2019-03-18T17:07:33+08:00">
-                2019-03-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-
+            <a href="/tags/java反射/" rel="tag"># java反射</a>
           
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
       
 
       
       
-        <div class="post-eof"></div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/18/hello-world/" rel="next" title="Hello World">
+                <i class="fa fa-chevron-left"></i> Hello World
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
       
     </footer>
   </div>
@@ -501,10 +392,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -512,6 +404,10 @@
 
 
           
+  <div class="comments" id="comments">
+    
+  </div>
+
 
         </div>
         
@@ -532,8 +428,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            Overview
+          </li>
+        </ul>
+      
 
-      <section class="site-overview sidebar-panel sidebar-panel-active">
+      <section class="site-overview sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="WangY">
           <p class="site-author-name" itemprop="name">WangY</p>
@@ -584,6 +489,22 @@
 
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#实现自定义的字段映射规则"><span class="nav-number">1.</span> <span class="nav-text">实现自定义的字段映射规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#获取pb类的实例"><span class="nav-number">2.</span> <span class="nav-text">获取pb类的实例</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -697,10 +618,10 @@
   
 
   
-    <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.2"></script>
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.2"></script>
 <script type="text/javascript" src="/js/src/post-details.js?v=5.1.2"></script>
 
-  
+
 
   
 
