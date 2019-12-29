@@ -6,15 +6,26 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="the-valley.github.io">
-  <title>Tag: quartz | WY&#39;s blog</title>
+  <title>WY&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
+  <meta name="description" content="Git-Flow分支模型整体图 为什么要git？有关Git与集中式源代码控制系统相比的优缺点的详细讨论，请参阅 网站。那里有很多火焰战争。作为开发人员，我更喜欢Git，而不是今天的所有其他工具。Git真的改变了开发人员对合并和分支的看法。从我来自经典的CVS / Subversion世界来看，合并/分支一直被认为有点可怕（“要小心合并冲突，它们会咬你！”）以及你每隔一段时间就会做的事情。 但是使用">
+<meta property="og:type" content="article">
 <meta property="og:title" content="WY&#39;s blog">
-<meta property="og:url" content="the-valley.github.io/tags/quartz/index.html">
+<meta property="og:url" content="the-valley.github.io/2019/06/22/Git-Flow分支模型/index.html">
 <meta property="og:site_name" content="WY&#39;s blog">
+<meta property="og:description" content="Git-Flow分支模型整体图 为什么要git？有关Git与集中式源代码控制系统相比的优缺点的详细讨论，请参阅 网站。那里有很多火焰战争。作为开发人员，我更喜欢Git，而不是今天的所有其他工具。Git真的改变了开发人员对合并和分支的看法。从我来自经典的CVS / Subversion世界来看，合并/分支一直被认为有点可怕（“要小心合并冲突，它们会咬你！”）以及你每隔一段时间就会做的事情。 但是使用">
 <meta property="og:locale" content="default">
+<meta property="og:image" content="https://nvie.com/img/git-model@2x.png">
+<meta property="og:image" content="https://nvie.com/img/centr-decentr@2x.png">
+<meta property="og:image" content="https://nvie.com/img/main-branches@2x.png">
+<meta property="og:image" content="https://nvie.com/img/fb@2x.png">
+<meta property="og:image" content="https://nvie.com/img/merge-without-ff@2x.png">
+<meta property="og:image" content="https://nvie.com/img/hotfix-branches@2x.png">
+<meta property="og:updated_time" content="2019-06-22T03:32:54.256Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="WY&#39;s blog">
+<meta name="twitter:description" content="Git-Flow分支模型整体图 为什么要git？有关Git与集中式源代码控制系统相比的优缺点的详细讨论，请参阅 网站。那里有很多火焰战争。作为开发人员，我更喜欢Git，而不是今天的所有其他工具。Git真的改变了开发人员对合并和分支的看法。从我来自经典的CVS / Subversion世界来看，合并/分支一直被认为有点可怕（“要小心合并冲突，它们会咬你！”）以及你每隔一段时间就会做的事情。 但是使用">
+<meta name="twitter:image" content="https://nvie.com/img/git-model@2x.png">
   
     <link rel="alternative" href="/atom.xml" title="WY&#39;s blog" type="application/atom+xml">
   
@@ -138,64 +149,261 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-Git-Flow分支模型" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="Git-Flow分支模型"><a href="#Git-Flow分支模型" class="headerlink" title="Git-Flow分支模型"></a>Git-Flow分支模型</h1><h2 id="整体图"><a href="#整体图" class="headerlink" title="整体图"></a>整体图</h2><p><img src="https://nvie.com/img/git-model@2x.png" alt="img"></p>
+<h2 id="为什么要git？"><a href="#为什么要git？" class="headerlink" title="为什么要git？"></a>为什么要git？</h2><p>有关Git与集中式源代码控制系统相比的优缺点的详细讨论，请参阅 <a href="http://git.or.cz/gitwiki/GitSvnComparsion" target="_blank" rel="noopener">网站</a>。那里有很多火焰战争。作为开发人员，我更喜欢Git，而不是今天的所有其他工具。Git真的改变了开发人员对合并和分支的看法。从我来自经典的CVS / Subversion世界来看，合并/分支一直被认为有点可怕（“要小心合并冲突，它们会咬你！”）以及你每隔一段时间就会做的事情。</p>
+<p>但是使用Git，这些操作非常便宜和简单，并且它们被认为是您<em>日常</em>工作流程的核心部分之一。例如，在CVS / Subversion <a href="http://svnbook.red-bean.com/" target="_blank" rel="noopener">书籍中</a>，分支和合并首先在后面的章节中讨论（对于高级用户），而在 <a href="http://book.git-scm.com/" target="_blank" rel="noopener">每本</a> <a href="http://pragprog.com/titles/tsgit/pragmatic-version-control-using-git" target="_blank" rel="noopener">Git </a><a href="http://github.com/progit/progit" target="_blank" rel="noopener">书中</a>，它已经在第3章（基础知识）中介绍过了。</p>
+<p>由于其简单性和重复性，分支和合并不再是一件令人害怕的事情。版本控制工具应该比其他任何东西更有助于分支/合并。</p>
+<p>足够的工具，让我们进入开发模型。我将在这里介绍的模型基本上只是每个团队成员必须遵循的一组程序才能进入托管软件开发过程。</p>
+<h2 id="分散但集中"><a href="#分散但集中" class="headerlink" title="分散但集中"></a>分散但集中</h2><p>我们使用的存储库设置与该分支模型配合良好，具有中央“真实”存储库。请注意，这个仓库只  <em>被认为</em> 是中央仓库（因为Git是DVCS，在技术层面没有中央仓库）。我们将此repo称为<code>origin</code>，因为所有Git用户都熟悉此名称。</p>
+<p><img src="https://nvie.com/img/centr-decentr@2x.png" alt="img"></p>
+<p>每个开发人员都会拉动并推动原点。但除了集中式推拉关系之外，每个开发人员还可以从其他同行中获取更改以形成子团队。例如，在将正在进行的工作<code>origin</code>过早推进之前，这对于与一个大的新功能上的两个或更多开发人员一起工作可能是有用的 。在上图中，有爱丽丝和鲍勃，爱丽丝和大卫以及克莱尔和大卫的子团队。</p>
+<p>从技术上讲，这意味着Alice已经定义了一个Git遥控器，名为<code>bob</code>，指向Bob的存储库，反之亦然。</p>
+<h2 id="主要分支"><a href="#主要分支" class="headerlink" title="主要分支"></a>主要分支</h2><p><img src="https://nvie.com/img/main-branches@2x.png" style="zoom:50%"></p>
+<p>在核心，开发模型受到现有模型的极大启发。中央仓库拥有两个主要分支，具有无限的生命周期：</p>
+<ul>
+<li><code>master</code></li>
+<li><code>develop</code></li>
+</ul>
+<p>该<code>master</code>分支在<code>origin</code>应该熟悉到每一个用户的Git。与<code>master</code>分支并行，另一个分支称为<code>develop</code>。</p>
+<p>我们认为<code>origin/master</code>是源代码<code>HEAD</code>总是反映<em>生产就绪</em>状态的主要分支 。</p>
+<p>我们认为<code>origin/develop</code>是主要的分支，其源代码 <code>HEAD</code>始终反映了下一版本中最新交付的开发更改的状态。有些人称之为“整合分支”。这是建立任何自动夜间构建的地方。</p>
+<p>当<code>develop</code>分支中的源代码到达稳定点并准备好被释放时，应该以<code>master</code> 某种方式将所有更改合并回来，然后使用版本号进行标记。将如何进一步详细讨论。</p>
+<p>因此，每次将更改合并回时<code>master</code>，<em>根据定义</em>，这是一个新的生产版本。我们对此非常严格，因此从理论上讲，我们可以使用Git钩子脚本在每次提交时自动构建和推出我们的软件到我们的生产服务器 <code>master</code>。</p>
+<h2 id="支持分支"><a href="#支持分支" class="headerlink" title="支持分支"></a>支持分支</h2><p>接下来的主要分支<code>master</code>和<code>develop</code>，我们的发展模式，采用了多种支持分支机构，以帮助并行开发团队成员之间，缓解功能跟踪，生产准备释放，并协助快速修复现场制作的问题。与主要分支不同，这些分支的寿命有限，因为它们最终会被删除。</p>
+<p>我们可能使用的不同类型的分支是：</p>
+<ul>
+<li>功能分支</li>
+<li>发布分支机构</li>
+<li>修补程序分支</li>
+</ul>
+<p>这些分支中的每一个都有特定的目的，并且必须遵守关于哪些分支可以是它们的起始分支以及哪些分支必须是它们的合并目标的严格规则。我们将在一分钟内完成它们。</p>
+<p>从技术角度来看，这些分支绝不是“特殊的”。分支类型根据我们如何<em>使用</em>它们进行分类。他们当然是老Git分支。</p>
+<h3 id="功能分支"><a href="#功能分支" class="headerlink" title="功能分支"></a>功能分支</h3><p><img src="https://nvie.com/img/fb@2x.png" style="zoom:50%"></p>
+<ul>
+<li><p>可能创建于：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p>任何东西，除了  <code>master</code>，<code>develop</code>，<code>release-*</code>，或者<code>hotfix-*</code></p>
+</li>
+</ul>
+<p>功能分支（或有时称为主题分支）用于为即将发布或将来的版本开发新功能。在开始开发特征时，此特征将在其中合并的目标版本可能在此时未知。功能分支的本质是，只要功能处于开发阶段，它就会存在，但最终会被合并回<code>develop</code>（以便将新功能添加到即将发布的版本中）或丢弃（在实验令人失望的情况下）。</p>
+<p>功能分支通常仅存在于开发人员存储库中，而不存在于<code>origin</code>。</p>
+<h4 id="创建功能分支"><a href="#创建功能分支" class="headerlink" title="创建功能分支"></a>创建功能分支</h4><p>在开始处理新功能时，从<code>develop</code>分支分支。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b myfeature develop</span><br><span class="line"> 切换到新分支“myfeature”</span><br></pre></td></tr></table></figure>
+<h4 id="在开发中加入完成的功能"><a href="#在开发中加入完成的功能" class="headerlink" title="在开发中加入完成的功能"></a>在开发中加入完成的功能</h4><p>完成的功能可能会合并到<code>develop</code>分支中，以确保将它们添加到即将发布的版本中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff myfeature</span><br><span class="line"> 更新ea1b82a..05e9557 </span><br><span class="line">（更改摘要）</span><br><span class="line">$ git branch -d myfeature</span><br><span class="line"> 已删除分支myfeature（为05e9557）。</span><br><span class="line">$ git push origin开发</span><br></pre></td></tr></table></figure>
+<p>该<code>--no-ff</code>标志使合并始终创建新的提交对象，即使可以使用快进执行合并。这样可以避免丢失有关功能分支历史存在的信息，并将所有一起添加功能的提交组合在一起。相比：</p>
+<p><img src="https://nvie.com/img/merge-without-ff@2x.png" style="zoom:50%"></p>
+<p>在后一种情况下，不可能从Git历史中看到哪些提交对象一起实现了一个功能 - 您必须手动读取所有日志消息。恢复整个功能（即一组提交）在后一种情况下是一个真正的头痛，而如果使用该<code>--no-ff</code>标志则很容易完成 。</p>
+<p>是的，它会创建一些（空的）提交对象，但增益远远大于成本。</p>
+<h3 id="发布分支"><a href="#发布分支" class="headerlink" title="发布分支"></a>发布分支</h3><ul>
+<li><p>可能会创建于：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code> 和 <code>master</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p><code>release-*</code></p>
+</li>
+</ul>
+<p>发布分支支持准备新的生产版本。他们允许最后一刻点缀我和交叉t。此外，它们允许修复小错误并为发布准备元数据（版本号，构建日期等）。通过在发布分支上执行所有这些工作，<code>develop</code> 分支将被清除以接收下一个大版本的功能。</p>
+<p>分支新发布分支的关键时刻<code>develop</code>是开发（几乎）反映新版本的期望状态。至少所有针对要构建的版本的功能必须<code>develop</code>在此时合并到其中 。针对未来版本的所有功能可能不会 - 他们必须等到发布分支分支后。</p>
+<p>正是在发布分支的开始，即将发布的版本被分配了一个版本号 - 而不是之前的版本号。直到那一刻，<code>develop</code> 分支反映了“下一个版本”的变化，但不清楚“下一个版本”最终是否会变为0.3或1.0，直到发布分支开始。该决定是在发布分支的开始时做出的，并由项目关于版本号冲突的规则执行。</p>
+<h4 id="创建发布分支"><a href="#创建发布分支" class="headerlink" title="创建发布分支"></a>创建发布分支</h4><p>发布分支是从<code>develop</code>分支创建的。例如，假设版本1.1.5是当前的生产版本，我们即将推出一个大版本。状态<code>develop</code>为“下一个版本”做好了准备，我们已经决定这将成为版本1.2（而不是1.1.6或2.0）。因此，我们分支并为发布分支提供反映新版本号的名称：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b release-1.2 develop</span><br><span class="line"> 切换到新分支“release-1.2” </span><br><span class="line">$ ./bump-version.sh 1.2</span><br><span class="line"> 文件修改成功，版本提升到1.2。</span><br><span class="line">$ git commit -a -m “Bumped version number to 1.2” </span><br><span class="line">[release-1.2 74d9424] Bumped version number改为1.2 </span><br><span class="line">1个文件，1个插入（+），1个删除（ - ）</span><br></pre></td></tr></table></figure>
+<p>在创建新分支并切换到它后，我们会修改版本号。这  <code>bump-version.sh</code>是一个虚构的shell脚本，它可以更改工作副本中的某些文件以反映新版本。（这当然可以是手动更改 - 关键是<em>某些</em>文件会发生变化。）然后，提交了有问题的版本号。</p>
+<p>这个新的分支可能存在一段时间，直到发布可能肯定推出。在此期间，可以在此分支中应用错误修复（而不是在<code>develop</code>分支上）。严禁在此处添加大型新功能。它们必须合并<code>develop</code>，因此等待下一个大版本。</p>
+<h4 id="完成发布分支"><a href="#完成发布分支" class="headerlink" title="完成发布分支"></a>完成发布分支</h4><p>当发布分支的状态准备好成为真正的发布时，需要执行一些操作。首先，发布分支被合并到 <code>master</code>（因为每次提交<code>master</code>都是按照<em>定义</em>的新版本，请记住）。接下来，<code>master</code>必须标记该提交，以便将来参考此历史版本。最后，需要将发布分支上所做的更改合并回来<code>develop</code>，以便将来的版本也包含这些错误修复。</p>
+<p>Git的前两个步骤：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout master</span><br><span class="line"> 切换到分支&apos;master&apos; </span><br><span class="line">$ git merge --no-ff release-1.2</span><br><span class="line"> 由递归合并而成。</span><br><span class="line">（更改摘要）</span><br><span class="line">$ git tag -a 1.2</span><br></pre></td></tr></table></figure>
+<p>该版本现已完成，并标记以供将来参考。</p>
+<blockquote>
+<p><strong>编辑：</strong>您可能还想使用<code>-s</code>或<code>-u &lt;key&gt;</code>标记以加密方式对您的标记进行签名。</p>
+</blockquote>
+<p>为了保持发布分支中所做的更改，我们需要将这些更改合并到其中<code>develop</code>。在Git中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff release-1.2</span><br><span class="line"> 由递归合并而成。</span><br><span class="line">（变更摘要）</span><br></pre></td></tr></table></figure>
+<p>这一步很可能导致合并冲突（可能甚至，因为我们已经更改了版本号）。如果是这样，请修复并提交。</p>
+<p>现在我们已经完成了，并且可能会删除发布分支，因为我们不再需要它了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git branch -d release-1.2</span><br><span class="line"> 删除了分支版本1.2（ff452fe）。</span><br></pre></td></tr></table></figure>
+<h3 id="修补程序分支"><a href="#修补程序分支" class="headerlink" title="修补程序分支"></a>修补程序分支</h3><p><img src="https://nvie.com/img/hotfix-branches@2x.png" alt="img"></p>
+<ul>
+<li><p>可能来源于：</p>
+<p><code>master</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code> 和 <code>master</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p><code>hotfix-*</code></p>
+</li>
+</ul>
+<p>修补程序分支非常像发布分支，因为它们也是为了准备新的生产版本，尽管是计划外的。它们源于必须立即采取实际生产版本的不良状态。当必须立即解决生产版本中的严重错误时，可以从标记生产版本的主分支上的相应标记分支修补程序分支。</p>
+<p>实质是团队成员（在<code>develop</code>分支机构）的工作可以继续，而另一个人正在准备快速生产修复。</p>
+<h4 id="创建修补程序分支"><a href="#创建修补程序分支" class="headerlink" title="创建修补程序分支"></a>创建修补程序分支</h4><p>从<code>master</code>分支创建修补程序  分支。例如，假设版本1.2是当前正在运行的生产版本，并且由于严重的错误而导致麻烦。但是变化<code>develop</code>仍然不稳定。然后我们可以分支修补程序分支并开始修复问题：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b hotfix-1.2.1 master</span><br><span class="line"> 切换到新分支“hotfix-1.2.1” </span><br><span class="line">$ ./bump-version.sh 1.2.1</span><br><span class="line"> 文件修改成功，版本提升到1.2.1。</span><br><span class="line">$ git commit -a -m “Bumped version number to 1.2.1” </span><br><span class="line">[hotfix-1.2.1 41e61bb] Bumped version number to 1.2.1 </span><br><span class="line">1个文件改变了，1个插入（+），1个删除（ - ）</span><br></pre></td></tr></table></figure>
+<p>分支后不要忘记碰撞版本号！</p>
+<p>然后，修复错误并在一个或多个单独的提交中提交修复。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ git commit -m “修复了严重生产问题” </span><br><span class="line">[hotfix-1.2.1 abbe5d6]修复了严重生产问题</span><br><span class="line">5个文件发生了变化，32个插入（+），17个删除（ - ）</span><br></pre></td></tr></table></figure>
+<h4 id="完成修补程序分支"><a href="#完成修补程序分支" class="headerlink" title="完成修补程序分支"></a>完成修补程序分支</h4><p>完成后，需要将错误修复合并回来<code>master</code>，但也需要合并回来<code>develop</code>，以保证错误修复程序也包含在下一个版本中。这与发布分支的完成方式完全相似。</p>
+<p>首先，更新<code>master</code>并标记版本。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout master</span><br><span class="line"> 切换到分支&apos;master&apos; </span><br><span class="line">$ git merge --no-ff hotfix-1.2.1</span><br><span class="line"> 由递归合并。</span><br><span class="line">（更改摘要）</span><br><span class="line">$ git tag -a 1.2.1</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p><strong>编辑：</strong>您可能还想使用<code>-s</code>或<code>-u &lt;key&gt;</code>标记以加密方式对您的标记进行签名。</p>
+</blockquote>
+<p>接下来，也包括错误修复<code>develop</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff hotfix-1.2.1</span><br><span class="line"> 由递归合并。</span><br><span class="line">（变更摘要）</span><br></pre></td></tr></table></figure>
+<p>此处规则的一个例外是，  <strong>当发布分支当前存在时，需要将修补程序更改合并到该发布分支中，而不是develop</strong>。在发布分支完成时，将错误修复反向合并到发布分支中最终会导致错误修复也被合并<code>develop</code>。（如果<code>develop</code>立即工作需要此错误修复并且不能等待发布分支完成，您可以安全地将错误修复合并到<code>develop</code>现在。）</p>
+<p>最后，删除临时分支：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git branch -d hotfix-1.2.1</span><br><span class="line"> 删除了分支修补程序-12.2.1（是abbe5d6）。</span><br></pre></td></tr></table></figure>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>虽然这个分支模型并没有什么令人震惊的新功能，但这篇文章开头的“大图”数字在我们的项目中非常有用。它形成了一个易于理解的优雅心理模型，并允许团队成员形成对分支和发布过程的共同理解。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2019" class="archive-year">2019</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2019/05/05/springboot集成quartz实现定时任务调度/" class="archive-article-date">
-  	<time datetime="2019-05-05T03:25:40.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-05-05</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/05/05/springboot集成quartz实现定时任务调度/">springboot集成quartz实现定时任务调度</a>
-    </h1>
-  
+      
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">springboot</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">quartz</a>
-        		</li>
-      		
-		</ul>
-	</div>
+      
 
-          
-
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=http:the-valley.github.io/2019/06/22/Git-Flow分支模型/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/2019/10/17/Mysql分区表及自动创建分区Partition/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          (no title)
+        
+      </div>
+    </a>
   
   
-    </div></section>
+    <a href="/2019/05/14/SQL游标/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">SQL游标</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+  
+  
   
 
-    
+  
+
+  
+
+  
 
 
           </div>
@@ -218,9 +426,9 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
-		isTag: true,
+		isTag: false,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,

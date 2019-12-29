@@ -140,6 +140,535 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-工作中遇到的SQL优化总结" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/12/29/工作中遇到的SQL优化总结/">工作中遇到的SQL优化总结</a>
+    </h1>
+  
+
+        
+        <a href="/2019/12/29/工作中遇到的SQL优化总结/" class="archive-article-date">
+  	<time datetime="2019-12-29T13:13:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-12-29</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="工作中遇到的SQL优化总结"><a href="#工作中遇到的SQL优化总结" class="headerlink" title="工作中遇到的SQL优化总结"></a>工作中遇到的SQL优化总结</h1><h2 id="多表join优化"><a href="#多表join优化" class="headerlink" title="多表join优化"></a>多表join优化</h2><h3 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h3><p>前两天线上更新了一个版本，上线后接口影响很慢，对于一些数量比较多的条目就直接超时了（超过了50秒）。因为业务场景偏OLAP且数据量很大，所以程序中自定义了mybatis的拦截器，在日志中记录了执行的SQL语句与其执行时间。所以定位到了此接口中的主要查询语句执行了50S，下面开始分析问题。</p>
+<h3 id="表信息"><a href="#表信息" class="headerlink" title="表信息"></a>表信息</h3><p>与这条SQL相关的表总共有四张。</p>
+<p>查询语句结构大致如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> cols</span><br><span class="line"><span class="keyword">FROM</span> main_table mt</span><br><span class="line"><span class="keyword">JOIN</span> slave_table1 st1 <span class="keyword">ON</span> mt.col1 = st1.col2</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> slave_table2 st2 <span class="keyword">ON</span> mt.col3 = st1.col4 <span class="keyword">AND</span> st1.col5 = st2.col6</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> slave_table3 st3 <span class="keyword">ON</span> mt.col1 = <span class="keyword">collate</span> utf8mb4_generic_ci st3.col2 <span class="keyword">and</span> clause...</span><br><span class="line"><span class="keyword">where</span> clause...</span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> mt.col1</span><br></pre></td></tr></table></figure>
+<p>各个表的数据量如下：</p>
+<table>
+<thead>
+<tr>
+<th>表名</th>
+<th>数据量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>main_table</td>
+<td>200W</td>
+</tr>
+<tr>
+<td>slave_table1</td>
+<td>2000W</td>
+</tr>
+<tr>
+<td>slave_table2</td>
+<td>4000</td>
+</tr>
+<tr>
+<td>slave_table3</td>
+<td>10W</td>
+</tr>
+</tbody>
+</table>
+<h3 id="优化思路"><a href="#优化思路" class="headerlink" title="优化思路"></a>优化思路</h3><h4 id="第一步"><a href="#第一步" class="headerlink" title="第一步"></a>第一步</h4><p>分析表的执行计划，（索引全部命中，所以这里只显示了几列，并且外层的查询），table列顺序如下表：</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>table</th>
+<th>rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Main_table</td>
+<td>26946</td>
+</tr>
+<tr>
+<td>2</td>
+<td>slave_table1</td>
+<td>8</td>
+</tr>
+<tr>
+<td>3</td>
+<td>slave_table2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>slave_table3</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>之前对于rows列一直有一个误解，最近在高性能mysql中重新看了下explain的章节，解释如下：</p>
+<p><img src="/Users/wy/Library/Application Support/typora-user-images/image-20191228020239802.png" alt="image-20191228020239802"></p>
+<p><strong>重要的一句：rows这一列是说MySQL从一张表中查出来符合条件的记录需要读取的平均行数，是<em>内嵌循环关联</em>计划里的循环数目。</strong></p>
+<p>看到这里总是要思考下，这个<em>内嵌循环关联</em>是什么？可以看一下<a href="https://dev.mysql.com/doc/refman/5.6/en/nested-loop-joins.html" target="_blank" rel="noopener">官方文档</a>。文档中说明了其算法逻辑：</p>
+<p><img src="/Users/wy/Library/Application Support/typora-user-images/image-20191228022614909.png" alt="image-20191228022614909"></p>
+<p>哈哈，简单粗暴，循环就对了。了解了这些开始对之前的SQL进行优化，猜想：left join的顺序会不会对查询时间有影响。现在对join顺序进行调整，把slave_table1放在最后面。</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>table</th>
+<th>rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Main_table</td>
+<td>26946</td>
+</tr>
+<tr>
+<td>2</td>
+<td>slave_table2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>slave_table3</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>slave_table1</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<p>执行时间：30s。快了将近一倍。</p>
+<p>进行分析：从<em>内嵌循环关联</em>算法逻辑出发，推导原因。</p>
+<p>对于最初的顺序：当主表查询出来有200W条数据时，left  join slave_table1时（粗略统计主表的每条记录在slave_table1有5个符合条件的记录），那这时候需要对slave_table1进行的查询次数为200W，且生成的中间表数据为200W*5 = 1000W，join slave2时（slave_table2有且只有一条符合条件的记录）这里需要对slave_table2查询1000W次，slave_table3的道理类似，也需要进行1000次。总的查询次数为 slave_table1 200W, slave_table2 1000W, slave_table3 1000W.</p>
+<p>对于调整后的顺序：当主表查询出来有200W条数据时，left  join slave_table2时，需要对slave_table2进行的查询次数为200W，且生成的中间表数据为200W*1 = 200W，join slave3时需要对slave_table3查询200W次，生成的中间表数据量为200W。最后join slave_table1，也需要200W次。总的查询次数为 slave_table1 200W, slave_table2 200W, slave_table3 200W.</p>
+<h4 id="第二步"><a href="#第二步" class="headerlink" title="第二步"></a>第二步</h4><p>联合索引顺序的优化。对于联合索引，一般有一个经验性的优化法则：选择性高的列放在前面，但是这并适合的已有的场景。在《高性能MySQL》书中，</p>
+<p><img src="/Users/wy/Library/Application Support/typora-user-images/image-20191229182740498.png" alt="image-20191229182740498"></p>
+<p>在不考虑数据分布与分组的情况下，把选择性高的列放在前面的位置，可以优化where条件的查找。但是数据查询时有明显的分组效果，这时就需要考虑调整联合索引的位置来优化查询速度，比如减少IO。</p>
+<p><img src="/Users/wy/Library/Application Support/typora-user-images/image-20191229210924205.png" alt="image-20191229210924205"></p>
+<p>对于B+树索引，每检索一层，都会对应着一次磁盘的IO。</p>
+<p>场景说明：在slave_table3中存在联合唯一约束（col2，col3）（这个索引的创建是根据选择性的高低来排列的）对于主表中的数据与slave3中的col3有分段分布关系的，在前面的join生成的中间表结果只可能存在唯一的col3值。此时，联合索引可以修改为（col3，col2）（即使col2列的选择性更高），这样在join查询时，mysql 可以通过读取更少的数据页，更少的磁盘IO来完成查询。</p>
+<h4 id="第三步"><a href="#第三步" class="headerlink" title="第三步"></a>第三步</h4><p>字符集的优化。由于数据库之前有过一次升级，来兼容一些生僻字，把utf8编码改成了utf8mb4编码，但是在升级的过程中只修改了部分表，这就造成了字符集与collation的不统一，这样在做比较时报collation不统一的错，于是同事在sql中加入了下面的代码：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ON mt.col1 = collate utf8mb4_generic_ci st3.col2</span><br></pre></td></tr></table></figure>
+<p>这句话是时间超时的最主要原因。collation的转换是一个很消耗计算资源的操作。所以在同一个数据库应该尽可能保持字符集与collation的一致性。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/12/29/工作中遇到的SQL优化总结/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-拆库web-gateway oom原因" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="拆库web-gateway-oom原因"><a href="#拆库web-gateway-oom原因" class="headerlink" title="拆库web-gateway oom原因"></a>拆库web-gateway oom原因</h1><h2 id="导致原因"><a href="#导致原因" class="headerlink" title="导致原因"></a>导致原因</h2><p>gateway程序分配的jvm内存较小，在日志文件中打印返回信息时把整个文件流加载到了内存中，导致了堆溢出。</p>
+<h2 id="排查过程"><a href="#排查过程" class="headerlink" title="排查过程"></a>排查过程</h2><p>对jvm 堆溢出时dump出来的堆转储快照进行分析。</p>
+<p><img src="/Users/wy/Library/Application Support/typora-user-images/image-20191104173815405.png" alt="image-20191104173815405"></p>
+<p>图片中char[]字节数组占用了562MB，这个应该是下载文件时的文件流。在日志文件打印时，需要把response body中的字节流转成字符串打印到日志文件，而这种大的char[]数组和大的字符串会直接写到jvm堆的老年代，所以会导致内存溢出。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/11/04/拆库web-gateway oom原因/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Mysql分区表及自动创建分区Partition" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>#Mysql分区表及自动创建分区Partition</p>
+<p>Range分区表建表语句如下，其中分区键必须和id构成主键和唯一键</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`test1`</span> (</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">char</span>(<span class="number">32</span>) <span class="keyword">COLLATE</span> utf8mb4_unicode_ci <span class="keyword">NOT</span> <span class="literal">NULL</span> <span class="keyword">COMMENT</span> <span class="string">'自增主键(guid)'</span>,</span><br><span class="line">  <span class="string">`create_time`</span> <span class="built_in">timestamp</span> <span class="keyword">NOT</span> <span class="literal">NULL</span> <span class="keyword">DEFAULT</span> <span class="keyword">CURRENT_TIMESTAMP</span> <span class="keyword">COMMENT</span> <span class="string">'创建时间'</span>,</span><br><span class="line">  <span class="string">`partition_key`</span> <span class="built_in">int</span>(<span class="number">8</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> <span class="keyword">COMMENT</span> <span class="string">'分区键(格式:yyyyMMdd)'</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`id`</span>,<span class="string">`partition_key`</span>),</span><br><span class="line">  <span class="keyword">UNIQUE</span> <span class="keyword">KEY</span> <span class="string">`id_UNIQUE`</span> (<span class="string">`id`</span>,<span class="string">`partition_key`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8mb4 <span class="keyword">COLLATE</span>=utf8mb4_unicode_ci</span><br><span class="line"><span class="keyword">PARTITION</span> <span class="keyword">BY</span> <span class="keyword">RANGE</span> (partition_key)</span><br><span class="line">(<span class="keyword">PARTITION</span> p0 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180619</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span>,</span><br><span class="line"> <span class="keyword">PARTITION</span> p20180619 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180620</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span>,</span><br><span class="line"> <span class="keyword">PARTITION</span> p20180621 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180622</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span>,</span><br><span class="line"> <span class="keyword">PARTITION</span> p20180622 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180623</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span>,</span><br><span class="line"> <span class="keyword">PARTITION</span> p20180623 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180624</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span>);</span><br></pre></td></tr></table></figure>
+<p>新增分区</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">alter</span> <span class="keyword">TABLE</span> <span class="string">`test1`</span> <span class="keyword">add</span> <span class="keyword">PARTITION</span>(</span><br><span class="line"> <span class="keyword">PARTITION</span> p20180629 <span class="keyword">VALUES</span> <span class="keyword">LESS</span> <span class="keyword">THAN</span> (<span class="number">20180630</span>) <span class="keyword">ENGINE</span> = <span class="keyword">InnoDB</span></span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+<p>删除分区</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">alter</span> <span class="keyword">table</span> <span class="string">`test1`</span>  <span class="keyword">drop</span> <span class="keyword">PARTITION</span> p20180629;</span><br></pre></td></tr></table></figure>
+<h4 id="Mysql不能自动创建分区，需要使用mysql-event事件的方式自动创建分区"><a href="#Mysql不能自动创建分区，需要使用mysql-event事件的方式自动创建分区" class="headerlink" title="Mysql不能自动创建分区，需要使用mysql event事件的方式自动创建分区"></a>Mysql不能自动创建分区，需要使用mysql event事件的方式自动创建分区</h4><p>1.创建分区的存储过程如下（每次执行先校验当前分区是否存在，如果存在则不处理；不存在则创建）：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">DELIMITER $$</span><br><span class="line"><span class="comment">#该表所在数据库名称</span></span><br><span class="line"><span class="keyword">USE</span> <span class="string">`demo`</span>$$</span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">PROCEDURE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`create_partition_by_day`</span>$$</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">PROCEDURE</span> <span class="string">`create_partition_by_day`</span>(IN_SCHEMANAME <span class="built_in">VARCHAR</span>(<span class="number">64</span>), IN_TABLENAME <span class="built_in">VARCHAR</span>(<span class="number">64</span>))</span><br><span class="line"><span class="keyword">BEGIN</span></span><br><span class="line">    <span class="comment">#当前日期存在的分区的个数</span></span><br><span class="line">    <span class="keyword">DECLARE</span> ROWS_CNT <span class="built_in">INT</span> <span class="keyword">UNSIGNED</span>;</span><br><span class="line">    <span class="comment">#目前日期，为当前日期的后一天</span></span><br><span class="line">    <span class="keyword">DECLARE</span> TARGET_DATE <span class="built_in">TIMESTAMP</span>;</span><br><span class="line">    <span class="comment">#分区的名称，格式为p20180620</span></span><br><span class="line">    <span class="keyword">DECLARE</span> PARTITIONNAME <span class="built_in">VARCHAR</span>(<span class="number">9</span>);</span><br><span class="line">    <span class="comment">#当前分区名称的分区值上限，即为 PARTITIONNAME + 1</span></span><br><span class="line">    <span class="keyword">DECLARE</span> PARTITION_ADD_DAY <span class="built_in">VARCHAR</span>(<span class="number">9</span>);</span><br><span class="line">    <span class="keyword">SET</span> TARGET_DATE = <span class="keyword">NOW</span>() + <span class="built_in">INTERVAL</span> <span class="number">1</span> <span class="keyword">DAY</span>;</span><br><span class="line">    <span class="keyword">SET</span> PARTITIONNAME = <span class="keyword">DATE_FORMAT</span>( TARGET_DATE, <span class="string">'p%Y%m%d'</span> );</span><br><span class="line">    <span class="keyword">SET</span> TARGET_DATE = TARGET_DATE + <span class="built_in">INTERVAL</span> <span class="number">1</span> <span class="keyword">DAY</span>;</span><br><span class="line">    <span class="keyword">SET</span> PARTITION_ADD_DAY = <span class="keyword">DATE_FORMAT</span>( TARGET_DATE, <span class="string">'%Y%m%d'</span> );</span><br><span class="line">    <span class="keyword">SELECT</span> <span class="keyword">COUNT</span>(*) <span class="keyword">INTO</span> ROWS_CNT <span class="keyword">FROM</span> information_schema.partitions</span><br><span class="line">    <span class="keyword">WHERE</span> table_schema = IN_SCHEMANAME <span class="keyword">AND</span> table_name = IN_TABLENAME <span class="keyword">AND</span> partition_name = PARTITIONNAME;</span><br><span class="line">    IF ROWS_CNT = 0 THEN</span><br><span class="line">        <span class="keyword">SET</span> @<span class="keyword">SQL</span> = <span class="keyword">CONCAT</span>( <span class="string">'ALTER TABLE `'</span>, IN_SCHEMANAME, <span class="string">'`.`'</span>, IN_TABLENAME, <span class="string">'`'</span>,</span><br><span class="line">        <span class="string">' ADD PARTITION (PARTITION '</span>, PARTITIONNAME, <span class="string">" VALUES LESS THAN ("</span>,</span><br><span class="line">            PARTITION_ADD_DAY ,<span class="string">") ENGINE = InnoDB);"</span> );</span><br><span class="line">        <span class="keyword">PREPARE</span> STMT <span class="keyword">FROM</span> @<span class="keyword">SQL</span>;</span><br><span class="line">        <span class="keyword">EXECUTE</span> STMT;</span><br><span class="line">        <span class="keyword">DEALLOCATE</span> <span class="keyword">PREPARE</span> STMT;</span><br><span class="line">     ELSE</span><br><span class="line">       <span class="keyword">SELECT</span> <span class="keyword">CONCAT</span>(<span class="string">"partition `"</span>, PARTITIONNAME, <span class="string">"` for table `"</span>,IN_SCHEMANAME, <span class="string">"."</span>, IN_TABLENAME, <span class="string">"` already exists"</span>) <span class="keyword">AS</span> <span class="keyword">result</span>;</span><br><span class="line">     <span class="keyword">END</span> <span class="keyword">IF</span>;</span><br><span class="line"><span class="keyword">END</span>$$</span><br><span class="line">DELIMITER ;</span><br></pre></td></tr></table></figure>
+<p>2.数据库定时任务(每小时执行一次)</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">DELIMITER $$</span><br><span class="line"><span class="comment">#该表所在的数据库名称</span></span><br><span class="line"><span class="keyword">USE</span> <span class="string">`demo`</span>$$</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">EVENT</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="string">`daily_generate_partition`</span></span><br><span class="line"><span class="keyword">ON</span> SCHEDULE EVERY <span class="number">1</span> <span class="keyword">hour</span>   <span class="comment">#执行周期，还有天、月等等</span></span><br><span class="line">STARTS <span class="string">'2018-06-20 00:00:00'</span></span><br><span class="line"><span class="keyword">ON</span> COMPLETION <span class="keyword">PRESERVE</span></span><br><span class="line"><span class="keyword">ENABLE</span></span><br><span class="line"><span class="keyword">COMMENT</span> <span class="string">'Creating partitions'</span></span><br><span class="line"><span class="keyword">DO</span> <span class="keyword">BEGIN</span></span><br><span class="line">    <span class="comment">#调用刚才创建的存储过程，第一个参数是数据库名称，第二个参数是表名称</span></span><br><span class="line">    <span class="keyword">CALL</span> datacollectcenter.create_partition_by_day(<span class="string">'demo'</span>,<span class="string">'test1'</span>);</span><br><span class="line"><span class="keyword">END</span>$$</span><br><span class="line">DELIMITER ;</span><br></pre></td></tr></table></figure>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/10/17/Mysql分区表及自动创建分区Partition/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Git-Flow分支模型" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="Git-Flow分支模型"><a href="#Git-Flow分支模型" class="headerlink" title="Git-Flow分支模型"></a>Git-Flow分支模型</h1><h2 id="整体图"><a href="#整体图" class="headerlink" title="整体图"></a>整体图</h2><p><img src="https://nvie.com/img/git-model@2x.png" alt="img"></p>
+<h2 id="为什么要git？"><a href="#为什么要git？" class="headerlink" title="为什么要git？"></a>为什么要git？</h2><p>有关Git与集中式源代码控制系统相比的优缺点的详细讨论，请参阅 <a href="http://git.or.cz/gitwiki/GitSvnComparsion" target="_blank" rel="noopener">网站</a>。那里有很多火焰战争。作为开发人员，我更喜欢Git，而不是今天的所有其他工具。Git真的改变了开发人员对合并和分支的看法。从我来自经典的CVS / Subversion世界来看，合并/分支一直被认为有点可怕（“要小心合并冲突，它们会咬你！”）以及你每隔一段时间就会做的事情。</p>
+<p>但是使用Git，这些操作非常便宜和简单，并且它们被认为是您<em>日常</em>工作流程的核心部分之一。例如，在CVS / Subversion <a href="http://svnbook.red-bean.com/" target="_blank" rel="noopener">书籍中</a>，分支和合并首先在后面的章节中讨论（对于高级用户），而在 <a href="http://book.git-scm.com/" target="_blank" rel="noopener">每本</a> <a href="http://pragprog.com/titles/tsgit/pragmatic-version-control-using-git" target="_blank" rel="noopener">Git </a><a href="http://github.com/progit/progit" target="_blank" rel="noopener">书中</a>，它已经在第3章（基础知识）中介绍过了。</p>
+<p>由于其简单性和重复性，分支和合并不再是一件令人害怕的事情。版本控制工具应该比其他任何东西更有助于分支/合并。</p>
+<p>足够的工具，让我们进入开发模型。我将在这里介绍的模型基本上只是每个团队成员必须遵循的一组程序才能进入托管软件开发过程。</p>
+<h2 id="分散但集中"><a href="#分散但集中" class="headerlink" title="分散但集中"></a>分散但集中</h2><p>我们使用的存储库设置与该分支模型配合良好，具有中央“真实”存储库。请注意，这个仓库只  <em>被认为</em> 是中央仓库（因为Git是DVCS，在技术层面没有中央仓库）。我们将此repo称为<code>origin</code>，因为所有Git用户都熟悉此名称。</p>
+<p><img src="https://nvie.com/img/centr-decentr@2x.png" alt="img"></p>
+<p>每个开发人员都会拉动并推动原点。但除了集中式推拉关系之外，每个开发人员还可以从其他同行中获取更改以形成子团队。例如，在将正在进行的工作<code>origin</code>过早推进之前，这对于与一个大的新功能上的两个或更多开发人员一起工作可能是有用的 。在上图中，有爱丽丝和鲍勃，爱丽丝和大卫以及克莱尔和大卫的子团队。</p>
+<p>从技术上讲，这意味着Alice已经定义了一个Git遥控器，名为<code>bob</code>，指向Bob的存储库，反之亦然。</p>
+<h2 id="主要分支"><a href="#主要分支" class="headerlink" title="主要分支"></a>主要分支</h2><p><img src="https://nvie.com/img/main-branches@2x.png" style="zoom:50%"></p>
+<p>在核心，开发模型受到现有模型的极大启发。中央仓库拥有两个主要分支，具有无限的生命周期：</p>
+<ul>
+<li><code>master</code></li>
+<li><code>develop</code></li>
+</ul>
+<p>该<code>master</code>分支在<code>origin</code>应该熟悉到每一个用户的Git。与<code>master</code>分支并行，另一个分支称为<code>develop</code>。</p>
+<p>我们认为<code>origin/master</code>是源代码<code>HEAD</code>总是反映<em>生产就绪</em>状态的主要分支 。</p>
+<p>我们认为<code>origin/develop</code>是主要的分支，其源代码 <code>HEAD</code>始终反映了下一版本中最新交付的开发更改的状态。有些人称之为“整合分支”。这是建立任何自动夜间构建的地方。</p>
+<p>当<code>develop</code>分支中的源代码到达稳定点并准备好被释放时，应该以<code>master</code> 某种方式将所有更改合并回来，然后使用版本号进行标记。将如何进一步详细讨论。</p>
+<p>因此，每次将更改合并回时<code>master</code>，<em>根据定义</em>，这是一个新的生产版本。我们对此非常严格，因此从理论上讲，我们可以使用Git钩子脚本在每次提交时自动构建和推出我们的软件到我们的生产服务器 <code>master</code>。</p>
+<h2 id="支持分支"><a href="#支持分支" class="headerlink" title="支持分支"></a>支持分支</h2><p>接下来的主要分支<code>master</code>和<code>develop</code>，我们的发展模式，采用了多种支持分支机构，以帮助并行开发团队成员之间，缓解功能跟踪，生产准备释放，并协助快速修复现场制作的问题。与主要分支不同，这些分支的寿命有限，因为它们最终会被删除。</p>
+<p>我们可能使用的不同类型的分支是：</p>
+<ul>
+<li>功能分支</li>
+<li>发布分支机构</li>
+<li>修补程序分支</li>
+</ul>
+<p>这些分支中的每一个都有特定的目的，并且必须遵守关于哪些分支可以是它们的起始分支以及哪些分支必须是它们的合并目标的严格规则。我们将在一分钟内完成它们。</p>
+<p>从技术角度来看，这些分支绝不是“特殊的”。分支类型根据我们如何<em>使用</em>它们进行分类。他们当然是老Git分支。</p>
+<h3 id="功能分支"><a href="#功能分支" class="headerlink" title="功能分支"></a>功能分支</h3><p><img src="https://nvie.com/img/fb@2x.png" style="zoom:50%"></p>
+<ul>
+<li><p>可能创建于：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p>任何东西，除了  <code>master</code>，<code>develop</code>，<code>release-*</code>，或者<code>hotfix-*</code></p>
+</li>
+</ul>
+<p>功能分支（或有时称为主题分支）用于为即将发布或将来的版本开发新功能。在开始开发特征时，此特征将在其中合并的目标版本可能在此时未知。功能分支的本质是，只要功能处于开发阶段，它就会存在，但最终会被合并回<code>develop</code>（以便将新功能添加到即将发布的版本中）或丢弃（在实验令人失望的情况下）。</p>
+<p>功能分支通常仅存在于开发人员存储库中，而不存在于<code>origin</code>。</p>
+<h4 id="创建功能分支"><a href="#创建功能分支" class="headerlink" title="创建功能分支"></a>创建功能分支</h4><p>在开始处理新功能时，从<code>develop</code>分支分支。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b myfeature develop</span><br><span class="line"> 切换到新分支“myfeature”</span><br></pre></td></tr></table></figure>
+<h4 id="在开发中加入完成的功能"><a href="#在开发中加入完成的功能" class="headerlink" title="在开发中加入完成的功能"></a>在开发中加入完成的功能</h4><p>完成的功能可能会合并到<code>develop</code>分支中，以确保将它们添加到即将发布的版本中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff myfeature</span><br><span class="line"> 更新ea1b82a..05e9557 </span><br><span class="line">（更改摘要）</span><br><span class="line">$ git branch -d myfeature</span><br><span class="line"> 已删除分支myfeature（为05e9557）。</span><br><span class="line">$ git push origin开发</span><br></pre></td></tr></table></figure>
+<p>该<code>--no-ff</code>标志使合并始终创建新的提交对象，即使可以使用快进执行合并。这样可以避免丢失有关功能分支历史存在的信息，并将所有一起添加功能的提交组合在一起。相比：</p>
+<p><img src="https://nvie.com/img/merge-without-ff@2x.png" style="zoom:50%"></p>
+<p>在后一种情况下，不可能从Git历史中看到哪些提交对象一起实现了一个功能 - 您必须手动读取所有日志消息。恢复整个功能（即一组提交）在后一种情况下是一个真正的头痛，而如果使用该<code>--no-ff</code>标志则很容易完成 。</p>
+<p>是的，它会创建一些（空的）提交对象，但增益远远大于成本。</p>
+<h3 id="发布分支"><a href="#发布分支" class="headerlink" title="发布分支"></a>发布分支</h3><ul>
+<li><p>可能会创建于：</p>
+<p><code>develop</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code> 和 <code>master</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p><code>release-*</code></p>
+</li>
+</ul>
+<p>发布分支支持准备新的生产版本。他们允许最后一刻点缀我和交叉t。此外，它们允许修复小错误并为发布准备元数据（版本号，构建日期等）。通过在发布分支上执行所有这些工作，<code>develop</code> 分支将被清除以接收下一个大版本的功能。</p>
+<p>分支新发布分支的关键时刻<code>develop</code>是开发（几乎）反映新版本的期望状态。至少所有针对要构建的版本的功能必须<code>develop</code>在此时合并到其中 。针对未来版本的所有功能可能不会 - 他们必须等到发布分支分支后。</p>
+<p>正是在发布分支的开始，即将发布的版本被分配了一个版本号 - 而不是之前的版本号。直到那一刻，<code>develop</code> 分支反映了“下一个版本”的变化，但不清楚“下一个版本”最终是否会变为0.3或1.0，直到发布分支开始。该决定是在发布分支的开始时做出的，并由项目关于版本号冲突的规则执行。</p>
+<h4 id="创建发布分支"><a href="#创建发布分支" class="headerlink" title="创建发布分支"></a>创建发布分支</h4><p>发布分支是从<code>develop</code>分支创建的。例如，假设版本1.1.5是当前的生产版本，我们即将推出一个大版本。状态<code>develop</code>为“下一个版本”做好了准备，我们已经决定这将成为版本1.2（而不是1.1.6或2.0）。因此，我们分支并为发布分支提供反映新版本号的名称：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b release-1.2 develop</span><br><span class="line"> 切换到新分支“release-1.2” </span><br><span class="line">$ ./bump-version.sh 1.2</span><br><span class="line"> 文件修改成功，版本提升到1.2。</span><br><span class="line">$ git commit -a -m “Bumped version number to 1.2” </span><br><span class="line">[release-1.2 74d9424] Bumped version number改为1.2 </span><br><span class="line">1个文件，1个插入（+），1个删除（ - ）</span><br></pre></td></tr></table></figure>
+<p>在创建新分支并切换到它后，我们会修改版本号。这  <code>bump-version.sh</code>是一个虚构的shell脚本，它可以更改工作副本中的某些文件以反映新版本。（这当然可以是手动更改 - 关键是<em>某些</em>文件会发生变化。）然后，提交了有问题的版本号。</p>
+<p>这个新的分支可能存在一段时间，直到发布可能肯定推出。在此期间，可以在此分支中应用错误修复（而不是在<code>develop</code>分支上）。严禁在此处添加大型新功能。它们必须合并<code>develop</code>，因此等待下一个大版本。</p>
+<h4 id="完成发布分支"><a href="#完成发布分支" class="headerlink" title="完成发布分支"></a>完成发布分支</h4><p>当发布分支的状态准备好成为真正的发布时，需要执行一些操作。首先，发布分支被合并到 <code>master</code>（因为每次提交<code>master</code>都是按照<em>定义</em>的新版本，请记住）。接下来，<code>master</code>必须标记该提交，以便将来参考此历史版本。最后，需要将发布分支上所做的更改合并回来<code>develop</code>，以便将来的版本也包含这些错误修复。</p>
+<p>Git的前两个步骤：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout master</span><br><span class="line"> 切换到分支&apos;master&apos; </span><br><span class="line">$ git merge --no-ff release-1.2</span><br><span class="line"> 由递归合并而成。</span><br><span class="line">（更改摘要）</span><br><span class="line">$ git tag -a 1.2</span><br></pre></td></tr></table></figure>
+<p>该版本现已完成，并标记以供将来参考。</p>
+<blockquote>
+<p><strong>编辑：</strong>您可能还想使用<code>-s</code>或<code>-u &lt;key&gt;</code>标记以加密方式对您的标记进行签名。</p>
+</blockquote>
+<p>为了保持发布分支中所做的更改，我们需要将这些更改合并到其中<code>develop</code>。在Git中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff release-1.2</span><br><span class="line"> 由递归合并而成。</span><br><span class="line">（变更摘要）</span><br></pre></td></tr></table></figure>
+<p>这一步很可能导致合并冲突（可能甚至，因为我们已经更改了版本号）。如果是这样，请修复并提交。</p>
+<p>现在我们已经完成了，并且可能会删除发布分支，因为我们不再需要它了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git branch -d release-1.2</span><br><span class="line"> 删除了分支版本1.2（ff452fe）。</span><br></pre></td></tr></table></figure>
+<h3 id="修补程序分支"><a href="#修补程序分支" class="headerlink" title="修补程序分支"></a>修补程序分支</h3><p><img src="https://nvie.com/img/hotfix-branches@2x.png" alt="img"></p>
+<ul>
+<li><p>可能来源于：</p>
+<p><code>master</code></p>
+</li>
+<li><p>必须合并回：</p>
+<p><code>develop</code> 和 <code>master</code></p>
+</li>
+<li><p>分支命名约定：</p>
+<p><code>hotfix-*</code></p>
+</li>
+</ul>
+<p>修补程序分支非常像发布分支，因为它们也是为了准备新的生产版本，尽管是计划外的。它们源于必须立即采取实际生产版本的不良状态。当必须立即解决生产版本中的严重错误时，可以从标记生产版本的主分支上的相应标记分支修补程序分支。</p>
+<p>实质是团队成员（在<code>develop</code>分支机构）的工作可以继续，而另一个人正在准备快速生产修复。</p>
+<h4 id="创建修补程序分支"><a href="#创建修补程序分支" class="headerlink" title="创建修补程序分支"></a>创建修补程序分支</h4><p>从<code>master</code>分支创建修补程序  分支。例如，假设版本1.2是当前正在运行的生产版本，并且由于严重的错误而导致麻烦。但是变化<code>develop</code>仍然不稳定。然后我们可以分支修补程序分支并开始修复问题：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout -b hotfix-1.2.1 master</span><br><span class="line"> 切换到新分支“hotfix-1.2.1” </span><br><span class="line">$ ./bump-version.sh 1.2.1</span><br><span class="line"> 文件修改成功，版本提升到1.2.1。</span><br><span class="line">$ git commit -a -m “Bumped version number to 1.2.1” </span><br><span class="line">[hotfix-1.2.1 41e61bb] Bumped version number to 1.2.1 </span><br><span class="line">1个文件改变了，1个插入（+），1个删除（ - ）</span><br></pre></td></tr></table></figure>
+<p>分支后不要忘记碰撞版本号！</p>
+<p>然后，修复错误并在一个或多个单独的提交中提交修复。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ git commit -m “修复了严重生产问题” </span><br><span class="line">[hotfix-1.2.1 abbe5d6]修复了严重生产问题</span><br><span class="line">5个文件发生了变化，32个插入（+），17个删除（ - ）</span><br></pre></td></tr></table></figure>
+<h4 id="完成修补程序分支"><a href="#完成修补程序分支" class="headerlink" title="完成修补程序分支"></a>完成修补程序分支</h4><p>完成后，需要将错误修复合并回来<code>master</code>，但也需要合并回来<code>develop</code>，以保证错误修复程序也包含在下一个版本中。这与发布分支的完成方式完全相似。</p>
+<p>首先，更新<code>master</code>并标记版本。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout master</span><br><span class="line"> 切换到分支&apos;master&apos; </span><br><span class="line">$ git merge --no-ff hotfix-1.2.1</span><br><span class="line"> 由递归合并。</span><br><span class="line">（更改摘要）</span><br><span class="line">$ git tag -a 1.2.1</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p><strong>编辑：</strong>您可能还想使用<code>-s</code>或<code>-u &lt;key&gt;</code>标记以加密方式对您的标记进行签名。</p>
+</blockquote>
+<p>接下来，也包括错误修复<code>develop</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ git checkout develop</span><br><span class="line"> 切换到分支&apos;develop&apos; </span><br><span class="line">$ git merge --no-ff hotfix-1.2.1</span><br><span class="line"> 由递归合并。</span><br><span class="line">（变更摘要）</span><br></pre></td></tr></table></figure>
+<p>此处规则的一个例外是，  <strong>当发布分支当前存在时，需要将修补程序更改合并到该发布分支中，而不是develop</strong>。在发布分支完成时，将错误修复反向合并到发布分支中最终会导致错误修复也被合并<code>develop</code>。（如果<code>develop</code>立即工作需要此错误修复并且不能等待发布分支完成，您可以安全地将错误修复合并到<code>develop</code>现在。）</p>
+<p>最后，删除临时分支：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git branch -d hotfix-1.2.1</span><br><span class="line"> 删除了分支修补程序-12.2.1（是abbe5d6）。</span><br></pre></td></tr></table></figure>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>虽然这个分支模型并没有什么令人震惊的新功能，但这篇文章开头的“大图”数字在我们的项目中非常有用。它形成了一个易于理解的优雅心理模型，并允许团队成员形成对分支和发布过程的共同理解。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/06/22/Git-Flow分支模型/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-SQL游标" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/05/14/SQL游标/">SQL游标</a>
+    </h1>
+  
+
+        
+        <a href="/2019/05/14/SQL游标/" class="archive-article-date">
+  	<time datetime="2019-05-14T08:41:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-05-14</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="SQL游标操作"><a href="#SQL游标操作" class="headerlink" title="SQL游标操作"></a>SQL游标操作</h1><p>在阅读ShardingSphere文档的时候，提到了通过sql游标来进行结果归并。参考mysql官方文档，整理一下sql游标与procedure的用法。</p>
+<h2 id="定义procedure"><a href="#定义procedure" class="headerlink" title="定义procedure"></a>定义procedure</h2><p>在procedure中使用sql游标来完成sum函数。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sql游标</span></span><br><span class="line"><span class="comment"># 示例使用的是mysql官方的sakila数据库</span></span><br><span class="line">delimiter //</span><br><span class="line"><span class="keyword">create</span> <span class="keyword">procedure</span> cursor_payment_param(inout pament_result <span class="built_in">int</span>)</span><br><span class="line">    <span class="keyword">begin</span></span><br><span class="line">        <span class="comment"># 定义一个flag来标记是否完成</span></span><br><span class="line">        <span class="keyword">declare</span> finished <span class="built_in">integer</span> <span class="keyword">default</span> <span class="literal">false</span>;</span><br><span class="line">        <span class="keyword">declare</span> per_amount <span class="built_in">int</span> <span class="keyword">default</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">declare</span> cursor_payment <span class="keyword">cursor</span> <span class="keyword">for</span> <span class="keyword">select</span> amount <span class="keyword">from</span> payment;</span><br><span class="line">        <span class="keyword">declare</span> continue <span class="keyword">handler</span> <span class="keyword">for</span> <span class="keyword">not</span> <span class="keyword">found</span> <span class="keyword">set</span> finished = <span class="literal">true</span>;</span><br><span class="line">        open cursor_payment;</span><br><span class="line">        read_loop: LOOP</span><br><span class="line">            fetch cursor_payment into per_amount;</span><br><span class="line">            if finished then</span><br><span class="line">                leave read_loop;</span><br><span class="line">            <span class="keyword">end</span> <span class="keyword">if</span>;</span><br><span class="line">            <span class="keyword">set</span> pament_result = pament_result + per_amount;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">end</span> <span class="keyword">loop</span>;</span><br><span class="line">        close cursor_payment;</span><br><span class="line">    <span class="keyword">end</span>;</span><br><span class="line">// <span class="comment"># 结束标识</span></span><br></pre></td></tr></table></figure></p>
+<h1 id="完善说明"><a href="#完善说明" class="headerlink" title="完善说明"></a>完善说明</h1><h2 id="调用procedure"><a href="#调用procedure" class="headerlink" title="调用procedure"></a>调用procedure</h2><p>procedure和function类似，通过call关键字来调用。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">set</span> @pament_result = <span class="number">0.0</span>;</span><br><span class="line"><span class="keyword">call</span> cursor_payment_param(@pament_result);</span><br><span class="line"><span class="keyword">select</span> @pament_result;</span><br></pre></td></tr></table></figure></p>
+<h2 id="查看procedure和function"><a href="#查看procedure和function" class="headerlink" title="查看procedure和function"></a>查看procedure和function</h2><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">show</span> <span class="keyword">procedure</span> <span class="keyword">status</span> <span class="keyword">like</span> <span class="string">'cursor%'</span>;</span><br><span class="line"><span class="keyword">show</span> <span class="keyword">function</span> <span class="keyword">status</span> <span class="keyword">like</span> <span class="string">'func_name'</span>;</span><br></pre></td></tr></table></figure>
+<h2 id="删除procedure"><a href="#删除procedure" class="headerlink" title="删除procedure"></a>删除procedure</h2><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">drop</span> <span class="keyword">procedure</span> <span class="keyword">if</span> <span class="keyword">exists</span> <span class="string">'pament'</span>;</span><br></pre></td></tr></table></figure>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">sql</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">mysql</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">sql游标</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/05/14/SQL游标/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-springboot集成quartz实现定时任务调度" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -468,6 +997,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
             <input type="checkbox" q-on="click:toggleTag(e)" q-attr="checked:showTags">
           </label>
           <ul class="article-tag-list" q-show="showTags">
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">mysql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sql游标</a>
+              </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">java反射</a>
